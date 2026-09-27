@@ -271,7 +271,13 @@
         <button class="btn btn-outline" onclick="loadSamplePlayers()">載入範例名單</button>
         <button class="btn btn-outline" onclick="clearAllData()" style="margin-left:auto;color:var(--danger)">清除所有資料</button>
       </div>
-      <div class="hint">選手姓名會出現在打擊／投手輸入的下拉選單中。資料會自動儲存在瀏覽器。</div>
+      <div class="form-row" style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px dashed var(--border);">
+        <button class="btn btn-success" onclick="exportData()">💾 存檔（下載 JSON）</button>
+        <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">📂 讀檔（匯入 JSON）</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)">
+        <span class="hint" style="margin:0;align-self:center;">建議定期存檔，換電腦或清除瀏覽器資料後可再讀回來</span>
+      </div>
+      <div class="hint">選手姓名會出現在打擊／投手輸入的下拉選單中。資料也會自動暫存在瀏覽器（localStorage）。</div>
       <h3 style="margin-top:1.2rem;font-size:1rem;color:var(--primary)">目前名單 <span class="badge" id="playerCount">0</span></h3>
       <div class="player-tags" id="playerTags"></div>
     </div>
@@ -426,12 +432,16 @@
           <select id="sharePlayer" style="width:160px"></select>
         </div>
         <button class="btn btn-primary" onclick="generateShareText()">產生文字</button>
-        <button class="btn btn-success" onclick="copyShareText()" id="copyBtn" style="display:none">📋 複製文字</button>
         <button class="btn btn-outline" onclick="generateAllShareText()">產生全部選手</button>
+        <button class="btn btn-success" onclick="copyShareText()" id="copyBtn" style="display:none">📋 複製文字</button>
+        <button class="btn btn-success" onclick="saveShareAsTxt()" id="saveTxtBtn" style="display:none">💾 存成文字檔</button>
+        <button class="btn btn-primary" onclick="document.getElementById('loadTxtFile').click()">📂 讀取文字檔</button>
+        <input type="file" id="loadTxtFile" accept=".txt,text/plain" style="display:none" onchange="loadShareTxt(event)">
       </div>
-      <div class="hint">選擇選手後按「產生文字」，即可複製貼給朋友。也可一次產生全部選手的數據。</div>
-      <textarea id="shareOutput" readonly placeholder="產生的文字會顯示在這裡…" style="width:100%;min-height:320px;margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:8px;font-family:Consolas,'Microsoft JhengHei',monospace;font-size:0.9rem;line-height:1.6;resize:vertical;background:#f8fafc;"></textarea>
+      <div class="hint">產生文字後可「複製」或「存成文字檔（.txt）」給朋友。也可讀取之前存的文字檔回來查看。</div>
+      <textarea id="shareOutput" placeholder="產生的文字會顯示在這裡…（也可讀取文字檔）" style="width:100%;min-height:320px;margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:8px;font-family:Consolas,'Microsoft JhengHei',monospace;font-size:0.9rem;line-height:1.6;resize:vertical;background:#f8fafc;"></textarea>
       <div id="copyMsg" style="margin-top:0.5rem;color:var(--success);font-weight:600;display:none;">✅ 已複製到剪貼簿！</div>
+      <div id="saveTxtMsg" style="margin-top:0.5rem;color:var(--success);font-weight:600;display:none;">✅ 文字檔已下載！</div>
     </div>
   </div>
 
@@ -443,8 +453,8 @@
         <li>到「選手名單」新增所有打者與投手姓名。</li>
         <li>到「打擊輸入」或「投手輸入」，選擇日期與選手，填入該場數據後按「新增此筆」。</li>
         <li>「打擊總結」與「投手總結」會即時自動加總並計算進階數據。</li>
-        <li>到「文字分享」可產生單一或全部選手的文字報告，方便複製貼給朋友。</li>
-        <li>所有資料自動儲存在瀏覽器（localStorage），下次開啟同一瀏覽器仍會保留。</li>
+        <li>到「文字分享」可產生單一或全部選手的文字報告，可複製、或「存成文字檔（.txt）」給朋友，也可讀取之前的文字檔查看。</li>
+        <li>資料會自動暫存在瀏覽器。選手名單頁的「存檔／讀檔」是備份完整數據用（JSON）；文字分享頁的存讀則是純文字報告。</li>
         <li>可隨時刪除單筆紀錄或清除所有資料重新開始。</li>
       </ol>
       <h3 style="margin-top:1.5rem;color:var(--primary)">打擊率公式</h3>
@@ -582,6 +592,61 @@ function clearAllData() {
   renderPitTable();
   renderBatSummary();
   renderPitSummary();
+}
+
+function exportData() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    players,
+    batting,
+    pitching
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `棒球統計備份_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data || !Array.isArray(data.players) || !Array.isArray(data.batting) || !Array.isArray(data.pitching)) {
+        alert('檔案格式不正確，請選擇本軟體匯出的 JSON 備份檔。');
+        return;
+      }
+      const msg = `即將匯入：\n選手 ${data.players.length} 人\n打擊紀錄 ${data.batting.length} 筆\n投手紀錄 ${data.pitching.length} 筆\n\n會覆蓋目前資料，確定嗎？`;
+      if (!confirm(msg)) {
+        event.target.value = '';
+        return;
+      }
+      players = data.players;
+      batting = data.batting;
+      pitching = data.pitching;
+      save();
+      renderPlayers();
+      updateSelects();
+      renderBatTable();
+      renderPitTable();
+      renderBatSummary();
+      renderPitSummary();
+      alert('匯入成功！');
+    } catch (err) {
+      alert('讀取失敗，請確認是正確的 JSON 備份檔。\n' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 // ========== Batting ==========
@@ -951,13 +1016,19 @@ function buildPlayerText(name) {
   return lines.join('\n');
 }
 
+function showShareButtons() {
+  document.getElementById('copyBtn').style.display = 'inline-block';
+  document.getElementById('saveTxtBtn').style.display = 'inline-block';
+  document.getElementById('copyMsg').style.display = 'none';
+  document.getElementById('saveTxtMsg').style.display = 'none';
+}
+
 function generateShareText() {
   const name = document.getElementById('sharePlayer').value;
   if (!name) { alert('請先選擇選手'); return; }
   const text = buildPlayerText(name);
   document.getElementById('shareOutput').value = text;
-  document.getElementById('copyBtn').style.display = 'inline-block';
-  document.getElementById('copyMsg').style.display = 'none';
+  showShareButtons();
 }
 
 function generateAllShareText() {
@@ -969,8 +1040,7 @@ function generateAllShareText() {
   const parts = list.map(n => buildPlayerText(n));
   const text = parts.join('\n\n' + '★'.repeat(14) + '\n\n');
   document.getElementById('shareOutput').value = text;
-  document.getElementById('copyBtn').style.display = 'inline-block';
-  document.getElementById('copyMsg').style.display = 'none';
+  showShareButtons();
 }
 
 function copyShareText() {
@@ -987,6 +1057,37 @@ function copyShareText() {
     msg.style.display = 'block';
     setTimeout(() => { msg.style.display = 'none'; }, 2000);
   });
+}
+
+function saveShareAsTxt() {
+  const text = document.getElementById('shareOutput').value;
+  if (!text.trim()) { alert('請先產生文字再存檔'); return; }
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const name = document.getElementById('sharePlayer').value || '全部選手';
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `棒球數據_${name}_${dateStr}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  const msg = document.getElementById('saveTxtMsg');
+  msg.style.display = 'block';
+  setTimeout(() => { msg.style.display = 'none'; }, 2500);
+}
+
+function loadShareTxt(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('shareOutput').value = e.target.result || '';
+    showShareButtons();
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 // ========== Init ==========
