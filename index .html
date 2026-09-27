@@ -337,9 +337,12 @@
         <div class="form-group"><label>勝 W</label><input type="number" id="pitW" min="0" value="0"></div>
         <div class="form-group"><label>敗 L</label><input type="number" id="pitL" min="0" value="0"></div>
         <div class="form-group"><label>救援 SV</label><input type="number" id="pitSV" min="0" value="0"></div>
+        <div class="form-group"><label>最高球速</label><input type="number" id="pitMaxVelo" min="0" step="0.1" value="" placeholder="km/h" title="當天最高球速（公里）"></div>
+        <div class="form-group"><label>平均球速</label><input type="number" id="pitAvgVelo" min="0" step="0.1" value="" placeholder="km/h" title="當天平均球速（公里）"></div>
+        <div class="form-group"><label>用球數</label><input type="number" id="pitPitches" min="0" value="" placeholder="球" title="當天總用球數"></div>
         <button class="btn btn-success" onclick="addPitching()">新增此筆</button>
       </div>
-      <div class="hint">局數請用小數：5.0 = 5局、5.1 = 5又1/3局、5.2 = 5又2/3局。系統會自動轉換計算。</div>
+      <div class="hint">局數請用小數：5.0 = 5局、5.1 = 5又1/3局、5.2 = 5又2/3局。球速單位為 km/h，可空白不填。</div>
     </div>
     <div class="card">
       <div class="toolbar">
@@ -351,7 +354,8 @@
           <thead>
             <tr>
               <th>日期</th><th>選手</th><th>IP</th><th>H</th><th>R</th><th>ER</th>
-              <th>BB</th><th>SO</th><th>HR</th><th>W</th><th>L</th><th>SV</th><th>操作</th>
+              <th>BB</th><th>SO</th><th>HR</th><th>W</th><th>L</th><th>SV</th>
+              <th>最高球速</th><th>平均球速</th><th>用球數</th><th>操作</th>
             </tr>
           </thead>
           <tbody id="pitTableBody"></tbody>
@@ -393,7 +397,7 @@
       <div class="formula-box">
         ERA = (ER × 9) ÷ IP &nbsp;|&nbsp; WHIP = (BB + H) ÷ IP &nbsp;|&nbsp;
         K/9 = (SO × 9) ÷ IP &nbsp;|&nbsp; BB/9 = (BB × 9) ÷ IP<br>
-        局數自動轉換：0.1 → 1/3 局、0.2 → 2/3 局
+        局數自動轉換：0.1 → 1/3 局、0.2 → 2/3 局　｜　最高球速取各場最大值，平均球速為有填寫場次的平均
       </div>
       <div class="table-wrap">
         <table>
@@ -402,6 +406,7 @@
               <th>選手</th><th>出賽</th><th>IP</th><th>H</th><th>R</th><th>ER</th>
               <th>BB</th><th>SO</th><th>HR</th><th>W</th><th>L</th><th>SV</th>
               <th>ERA</th><th>WHIP</th><th>K/9</th><th>BB/9</th>
+              <th>最高球速</th><th>平均球速</th><th>總用球</th>
             </tr>
           </thead>
           <tbody id="pitSumBody"></tbody>
@@ -720,6 +725,9 @@ function convertIP(raw) {
 function addPitching() {
   const player = document.getElementById('pitPlayer').value;
   if (!player) { alert('請先選擇選手'); return; }
+  const maxVeloVal = document.getElementById('pitMaxVelo').value;
+  const avgVeloVal = document.getElementById('pitAvgVelo').value;
+  const pitchesVal = document.getElementById('pitPitches').value;
   const rec = {
     id: Date.now() + Math.random(),
     date: document.getElementById('pitDate').value || new Date().toISOString().slice(0,10),
@@ -733,7 +741,10 @@ function addPitching() {
     HR: +document.getElementById('pitHR').value || 0,
     W: +document.getElementById('pitW').value || 0,
     L: +document.getElementById('pitL').value || 0,
-    SV: +document.getElementById('pitSV').value || 0
+    SV: +document.getElementById('pitSV').value || 0,
+    maxVelo: maxVeloVal === '' ? null : +maxVeloVal,
+    avgVelo: avgVeloVal === '' ? null : +avgVeloVal,
+    pitches: pitchesVal === '' ? null : +pitchesVal
   };
   pitching.push(rec);
   save();
@@ -741,6 +752,9 @@ function addPitching() {
   ['pitIP','pitH','pitR','pitER','pitBB','pitSO','pitHR','pitW','pitL','pitSV'].forEach(id => {
     document.getElementById(id).value = 0;
   });
+  document.getElementById('pitMaxVelo').value = '';
+  document.getElementById('pitAvgVelo').value = '';
+  document.getElementById('pitPitches').value = '';
 }
 
 function deletePitching(id) {
@@ -765,6 +779,9 @@ function renderPitTable() {
       <td>${r.date}</td><td>${r.player}</td>
       <td>${r.IP}</td><td>${r.H}</td><td>${r.R}</td><td>${r.ER}</td>
       <td>${r.BB}</td><td>${r.SO}</td><td>${r.HR}</td><td>${r.W}</td><td>${r.L}</td><td>${r.SV}</td>
+      <td>${r.maxVelo != null ? r.maxVelo : '-'}</td>
+      <td>${r.avgVelo != null ? r.avgVelo : '-'}</td>
+      <td>${r.pitches != null ? r.pitches : '-'}</td>
       <td><button class="btn btn-danger" onclick="deletePitching(${r.id})">刪</button></td>
     </tr>
   `).join('');
@@ -782,13 +799,24 @@ function renderPitSummary() {
   const map = {};
   pitching.forEach(r => {
     if (!map[r.player]) {
-      map[r.player] = { games:0, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0 };
+      map[r.player] = {
+        games:0, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0,
+        maxVelo: null, avgVeloSum: 0, avgVeloCount: 0, pitches: 0
+      };
     }
     const s = map[r.player];
     s.games++;
     s.rawIP += r.IP;
     s.H += r.H; s.R += r.R; s.ER += r.ER; s.BB += r.BB; s.SO += r.SO;
     s.HR += r.HR; s.W += r.W; s.L += r.L; s.SV += r.SV;
+    if (r.maxVelo != null) {
+      s.maxVelo = s.maxVelo == null ? r.maxVelo : Math.max(s.maxVelo, r.maxVelo);
+    }
+    if (r.avgVelo != null) {
+      s.avgVeloSum += r.avgVelo;
+      s.avgVeloCount++;
+    }
+    if (r.pitches != null) s.pitches += r.pitches;
   });
 
   const sorted = Object.entries(map).map(([name, s]) => {
@@ -797,11 +825,12 @@ function renderPitSummary() {
     const WHIP = IP ? ((s.BB + s.H) / IP) : null;
     const K9 = IP ? (s.SO * 9 / IP) : null;
     const BB9 = IP ? (s.BB * 9 / IP) : null;
-    return { name, s, IP, ERA, WHIP, K9, BB9 };
+    const avgVelo = s.avgVeloCount ? s.avgVeloSum / s.avgVeloCount : null;
+    return { name, s, IP, ERA, WHIP, K9, BB9, avgVelo };
   }).sort((a,b) => (a.ERA || 999) - (b.ERA || 999));
 
-  tbody.innerHTML = sorted.map(({ name, s, IP, ERA, WHIP, K9, BB9 }) => {
-    const fmt = (v, d=2) => v === null ? '-' : v.toFixed(d);
+  tbody.innerHTML = sorted.map(({ name, s, IP, ERA, WHIP, K9, BB9, avgVelo }) => {
+    const fmt = (v, d=2) => v === null || v === undefined ? '-' : v.toFixed(d);
     return `
       <tr>
         <td><strong>${name}</strong></td>
@@ -813,6 +842,9 @@ function renderPitSummary() {
         <td class="${ERA !== null && ERA <= 3.5 ? 'stat-good' : ERA > 5 ? 'stat-bad' : ''}">${fmt(ERA)}</td>
         <td class="${WHIP !== null && WHIP <= 1.2 ? 'stat-good' : WHIP > 1.5 ? 'stat-bad' : ''}">${fmt(WHIP)}</td>
         <td>${fmt(K9)}</td><td>${fmt(BB9)}</td>
+        <td>${s.maxVelo != null ? s.maxVelo : '-'}</td>
+        <td>${avgVelo != null ? avgVelo.toFixed(1) : '-'}</td>
+        <td>${s.pitches || '-'}</td>
       </tr>
     `;
   }).join('');
@@ -842,17 +874,24 @@ function getBatterStats(name) {
 function getPitcherStats(name) {
   const recs = pitching.filter(r => r.player === name);
   if (recs.length === 0) return null;
-  const s = { games: recs.length, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0 };
+  const s = {
+    games: recs.length, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0,
+    maxVelo: null, avgVeloSum: 0, avgVeloCount: 0, pitches: 0
+  };
   recs.forEach(r => {
     s.rawIP += r.IP; s.H += r.H; s.R += r.R; s.ER += r.ER; s.BB += r.BB;
     s.SO += r.SO; s.HR += r.HR; s.W += r.W; s.L += r.L; s.SV += r.SV;
+    if (r.maxVelo != null) s.maxVelo = s.maxVelo == null ? r.maxVelo : Math.max(s.maxVelo, r.maxVelo);
+    if (r.avgVelo != null) { s.avgVeloSum += r.avgVelo; s.avgVeloCount++; }
+    if (r.pitches != null) s.pitches += r.pitches;
   });
   const IP = convertIP(s.rawIP);
   const ERA = IP ? s.ER * 9 / IP : null;
   const WHIP = IP ? (s.BB + s.H) / IP : null;
   const K9 = IP ? s.SO * 9 / IP : null;
   const BB9 = IP ? s.BB * 9 / IP : null;
-  return { s, IP, ERA, WHIP, K9, BB9, recs };
+  const avgVelo = s.avgVeloCount ? s.avgVeloSum / s.avgVeloCount : null;
+  return { s, IP, ERA, WHIP, K9, BB9, avgVelo, recs };
 }
 
 function buildPlayerText(name) {
@@ -892,11 +931,14 @@ function buildPlayerText(name) {
     lines.push(`  勝 ${pit.s.W}　敗 ${pit.s.L}　救援 ${pit.s.SV}`);
     lines.push(`  防禦率 ${fmt2(pit.ERA)}　WHIP ${fmt2(pit.WHIP)}`);
     lines.push(`  K/9 ${fmt2(pit.K9)}　BB/9 ${fmt2(pit.BB9)}`);
+    lines.push(`  最高球速 ${pit.s.maxVelo != null ? pit.s.maxVelo + ' km/h' : '-'}　平均球速 ${pit.avgVelo != null ? pit.avgVelo.toFixed(1) + ' km/h' : '-'}`);
+    lines.push(`  總用球數 ${pit.s.pitches || '-'}`);
     lines.push('');
     lines.push('  各場明細：');
     const sortedPit = [...pit.recs].sort((a,b) => a.date.localeCompare(b.date));
     sortedPit.forEach(r => {
-      lines.push(`  ${r.date}　IP${r.IP} H${r.H} R${r.R} ER${r.ER} BB${r.BB} SO${r.SO} W${r.W} L${r.L} SV${r.SV}`);
+      const velo = [r.maxVelo != null ? `最高${r.maxVelo}` : '', r.avgVelo != null ? `均速${r.avgVelo}` : '', r.pitches != null ? `球數${r.pitches}` : ''].filter(Boolean).join(' ');
+      lines.push(`  ${r.date}　IP${r.IP} H${r.H} R${r.R} ER${r.ER} BB${r.BB} SO${r.SO} W${r.W} L${r.L} SV${r.SV}${velo ? '　' + velo : ''}`);
     });
   } else {
     lines.push('');
