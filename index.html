@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>棒球統計軟體</title>
+<style>
+  :root {
+    --primary: #1a365d;
+    --primary-light: #2b6cb0;
+    --accent: #ed8936;
+    --bg: #f7fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --success: #38a169;
+    --danger: #e53e3e;
+    --text: #2d3748;
+    --muted: #718096;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .header {
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: white;
+    padding: 1.2rem 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .header h1 { font-size: 1.5rem; font-weight: 700; }
+  .header p { font-size: 0.9rem; opacity: 0.9; margin-top: 0.25rem; }
+  .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0.5rem;
+  }
+  .tab-btn {
+    padding: 0.6rem 1.2rem;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--muted);
+    border-radius: 6px 6px 0 0;
+    transition: all 0.2s;
+  }
+  .tab-btn:hover { background: #edf2f7; color: var(--primary); }
+  .tab-btn.active {
+    background: var(--primary);
+    color: white;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .card h2 {
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    align-items: flex-end;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .form-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  input, select {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    min-width: 70px;
+  }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(43,108,176,0.15);
+  }
+  input[type="number"] { width: 70px; }
+  input[type="date"] { width: 140px; }
+  input[type="text"] { width: 110px; }
+  .btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); }
+  .btn-success { background: var(--success); color: white; }
+  .btn-success:hover { opacity: 0.9; }
+  .btn-danger { background: var(--danger); color: white; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-outline {
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { background: #edf2f7; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th, td {
+    padding: 0.5rem 0.4rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+  tr:nth-child(even) { background: #f8fafc; }
+  tr:hover { background: #edf2f7; }
+  .table-wrap {
+    overflow-x: auto;
+    max-height: 450px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .stat-good { color: var(--success); font-weight: 700; }
+  .stat-bad { color: var(--danger); font-weight: 700; }
+  .empty-msg {
+    text-align: center;
+    color: var(--muted);
+    padding: 2rem;
+    font-size: 0.95rem;
+  }
+  .toolbar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    align-items: center;
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #ebf8ff;
+    color: var(--primary-light);
+  }
+  .hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+  }
+  .player-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+  .player-tag {
+    background: #ebf8ff;
+    color: var(--primary);
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .player-tag button {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .formula-box {
+    background: #f0fff4;
+    border-left: 4px solid var(--success);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+  }
+  .formula-box code {
+    background: #c6f6d5;
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+    font-family: Consolas, monospace;
+  }
+  @media (max-width: 768px) {
+    .form-row { flex-direction: column; }
+    input, select { width: 100% !important; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⚾ 棒球統計軟體</h1>
+  <p>輸入各場結果 → 自動加總打擊率、上壘率、長打率、OPS 與投手完整數據</p>
+</div>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="roster">選手名單</button>
+    <button class="tab-btn" data-tab="batting">打擊輸入</button>
+    <button class="tab-btn" data-tab="pitching">投手輸入</button>
+    <button class="tab-btn" data-tab="bat-summary">打擊總結</button>
+    <button class="tab-btn" data-tab="pit-summary">投手總結</button>
+    <button class="tab-btn" data-tab="share">文字分享</button>
+    <button class="tab-btn" data-tab="help">使用說明</button>
+  </div>
+
+  <!-- 選手名單 -->
+  <div id="roster" class="panel active">
+    <div class="card">
+      <h2>📋 選手名單管理</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>新增選手姓名</label>
+          <input type="text" id="newPlayerName" placeholder="輸入姓名" style="width:160px">
+        </div>
+        <div class="form-group">
+          <label>類型</label>
+          <select id="newPlayerType">
+            <option value="both">打者 + 投手</option>
+            <option value="batter">僅打者</option>
+            <option value="pitcher">僅投手</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addPlayer()">＋ 新增</button>
+        <button class="btn btn-outline" onclick="loadSamplePlayers()">載入範例名單</button>
+        <button class="btn btn-outline" onclick="clearAllData()" style="margin-left:auto;color:var(--danger)">清除所有資料</button>
+      </div>
+      <div class="hint">選手姓名會出現在打擊／投手輸入的下拉選單中。資料會自動儲存在瀏覽器。</div>
+      <h3 style="margin-top:1.2rem;font-size:1rem;color:var(--primary)">目前名單 <span class="badge" id="playerCount">0</span></h3>
+      <div class="player-tags" id="playerTags"></div>
+    </div>
+  </div>
+
+  <!-- 打擊輸入 -->
+  <div id="batting" class="panel">
+    <div class="card">
+      <h2>🏏 打擊數據輸入</h2>
+      <div class="form-row" id="batForm">
+        <div class="form-group"><label>日期</label><input type="date" id="batDate"></div>
+        <div class="form-group"><label>選手</label><select id="batPlayer"></select></div>
+        <div class="form-group"><label>打數 AB</label><input type="number" id="batAB" min="0" value="0"></div>
+        <div class="form-group"><label>安打 H</label><input type="number" id="batH" min="0" value="0"></div>
+        <div class="form-group"><label>二壘 2B</label><input type="number" id="bat2B" min="0" value="0"></div>
+        <div class="form-group"><label>三壘 3B</label><input type="number" id="bat3B" min="0" value="0"></div>
+        <div class="form-group"><label>全壘 HR</label><input type="number" id="batHR" min="0" value="0"></div>
+        <div class="form-group"><label>保送 BB</label><input type="number" id="batBB" min="0" value="0"></div>
+        <div class="form-group"><label>觸身 HBP</label><input type="number" id="batHBP" min="0" value="0"></div>
+        <div class="form-group"><label>犧飛 SF</label><input type="number" id="batSF" min="0" value="0"></div>
+        <div class="form-group"><label>得分 R</label><input type="number" id="batR" min="0" value="0"></div>
+        <div class="form-group"><label>打點 RBI</label><input type="number" id="batRBI" min="0" value="0"></div>
+        <div class="form-group"><label>盜壘 SB</label><input type="number" id="batSB" min="0" value="0"></div>
+        <div class="form-group"><label>三振 SO</label><input type="number" id="batSO" min="0" value="0"></div>
+        <button class="btn btn-success" onclick="addBatting()">新增此筆</button>
+      </div>
+      <div class="hint">每場每位打者新增一筆。修改後會即時反映在「打擊總結」。</div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">打擊紀錄</h2>
+        <span class="badge" id="batRecordCount">0 筆</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th><th>選手</th><th>AB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th>
+              <th>BB</th><th>HBP</th><th>SF</th><th>R</th><th>RBI</th><th>SB</th><th>SO</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="batTableBody"></tbody>
+        </table>
+      </div>
+      <div id="batEmpty" class="empty-msg">尚無打擊紀錄，請先新增選手並輸入數據。</div>
+    </div>
+  </div>
+
+  <!-- 投手輸入 -->
+  <div id="pitching" class="panel">
+    <div class="card">
+      <h2>🎯 投手數據輸入</h2>
+      <div class="form-row">
+        <div class="form-group"><label>日期</label><input type="date" id="pitDate"></div>
+        <div class="form-group"><label>選手</label><select id="pitPlayer"></select></div>
+        <div class="form-group"><label>局數 IP</label><input type="number" id="pitIP" min="0" step="0.1" value="0" title="5.1 = 5又1/3局，5.2 = 5又2/3局"></div>
+        <div class="form-group"><label>被安打 H</label><input type="number" id="pitH" min="0" value="0"></div>
+        <div class="form-group"><label>失分 R</label><input type="number" id="pitR" min="0" value="0"></div>
+        <div class="form-group"><label>責失 ER</label><input type="number" id="pitER" min="0" value="0"></div>
+        <div class="form-group"><label>保送 BB</label><input type="number" id="pitBB" min="0" value="0"></div>
+        <div class="form-group"><label>三振 SO</label><input type="number" id="pitSO" min="0" value="0"></div>
+        <div class="form-group"><label>被全壘 HR</label><input type="number" id="pitHR" min="0" value="0"></div>
+        <div class="form-group"><label>勝 W</label><input type="number" id="pitW" min="0" value="0"></div>
+        <div class="form-group"><label>敗 L</label><input type="number" id="pitL" min="0" value="0"></div>
+        <div class="form-group"><label>救援 SV</label><input type="number" id="pitSV" min="0" value="0"></div>
+        <div class="form-group"><label>最高球速</label><input type="number" id="pitMaxVelo" min="0" step="0.1" value="" placeholder="km/h" title="當天最高球速（公里）"></div>
+        <div class="form-group"><label>平均球速</label><input type="number" id="pitAvgVelo" min="0" step="0.1" value="" placeholder="km/h" title="當天平均球速（公里）"></div>
+        <div class="form-group"><label>用球數</label><input type="number" id="pitPitches" min="0" value="" placeholder="球" title="當天總用球數"></div>
+        <button class="btn btn-success" onclick="addPitching()">新增此筆</button>
+      </div>
+      <div class="hint">局數請用小數：5.0 = 5局、5.1 = 5又1/3局、5.2 = 5又2/3局。球速單位為 km/h，可空白不填。</div>
+    </div>
+    <div class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">投手紀錄</h2>
+        <span class="badge" id="pitRecordCount">0 筆</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th><th>選手</th><th>IP</th><th>H</th><th>R</th><th>ER</th>
+              <th>BB</th><th>SO</th><th>HR</th><th>W</th><th>L</th><th>SV</th>
+              <th>最高球速</th><th>平均球速</th><th>用球數</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="pitTableBody"></tbody>
+        </table>
+      </div>
+      <div id="pitEmpty" class="empty-msg">尚無投手紀錄，請先新增選手並輸入數據。</div>
+    </div>
+  </div>
+
+  <!-- 打擊總結 -->
+  <div id="bat-summary" class="panel">
+    <div class="card">
+      <h2>📊 打擊數據總結</h2>
+      <div class="formula-box">
+        BA = H ÷ AB &nbsp;|&nbsp; OBP = (H+BB+HBP) ÷ (AB+BB+HBP+SF) &nbsp;|&nbsp;
+        SLG = 壘打數 ÷ AB &nbsp;|&nbsp; OPS = OBP + SLG<br>
+        壘打數 TB = H + 2B + 2×3B + 3×HR
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>選手</th><th>場次</th><th>AB</th><th>H</th><th>2B</th><th>3B</th><th>HR</th>
+              <th>BB</th><th>HBP</th><th>SF</th><th>R</th><th>RBI</th><th>SB</th><th>SO</th>
+              <th>TB</th><th>BA</th><th>OBP</th><th>SLG</th><th>OPS</th>
+            </tr>
+          </thead>
+          <tbody id="batSumBody"></tbody>
+        </table>
+      </div>
+      <div id="batSumEmpty" class="empty-msg">尚無打擊數據可總結。</div>
+    </div>
+  </div>
+
+  <!-- 投手總結 -->
+  <div id="pit-summary" class="panel">
+    <div class="card">
+      <h2>📈 投手數據總結</h2>
+      <div class="formula-box">
+        ERA = (ER × 9) ÷ IP &nbsp;|&nbsp; WHIP = (BB + H) ÷ IP &nbsp;|&nbsp;
+        K/9 = (SO × 9) ÷ IP &nbsp;|&nbsp; BB/9 = (BB × 9) ÷ IP<br>
+        局數自動轉換：0.1 → 1/3 局、0.2 → 2/3 局　｜　最高球速取各場最大值，平均球速為有填寫場次的平均
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>選手</th><th>出賽</th><th>IP</th><th>H</th><th>R</th><th>ER</th>
+              <th>BB</th><th>SO</th><th>HR</th><th>W</th><th>L</th><th>SV</th>
+              <th>ERA</th><th>WHIP</th><th>K/9</th><th>BB/9</th>
+              <th>最高球速</th><th>平均球速</th><th>總用球</th>
+            </tr>
+          </thead>
+          <tbody id="pitSumBody"></tbody>
+        </table>
+      </div>
+      <div id="pitSumEmpty" class="empty-msg">尚無投手數據可總結。</div>
+    </div>
+  </div>
+
+  <!-- 文字分享 -->
+  <div id="share" class="panel">
+    <div class="card">
+      <h2>📤 選手數據文字輸出（方便分享）</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>選擇選手</label>
+          <select id="sharePlayer" style="width:160px"></select>
+        </div>
+        <button class="btn btn-primary" onclick="generateShareText()">產生文字</button>
+        <button class="btn btn-success" onclick="copyShareText()" id="copyBtn" style="display:none">📋 複製文字</button>
+        <button class="btn btn-outline" onclick="generateAllShareText()">產生全部選手</button>
+      </div>
+      <div class="hint">選擇選手後按「產生文字」，即可複製貼給朋友。也可一次產生全部選手的數據。</div>
+      <textarea id="shareOutput" readonly placeholder="產生的文字會顯示在這裡…" style="width:100%;min-height:320px;margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:8px;font-family:Consolas,'Microsoft JhengHei',monospace;font-size:0.9rem;line-height:1.6;resize:vertical;background:#f8fafc;"></textarea>
+      <div id="copyMsg" style="margin-top:0.5rem;color:var(--success);font-weight:600;display:none;">✅ 已複製到剪貼簿！</div>
+    </div>
+  </div>
+
+  <!-- 使用說明 -->
+  <div id="help" class="panel">
+    <div class="card">
+      <h2>📖 使用說明</h2>
+      <ol style="padding-left:1.5rem;line-height:1.8">
+        <li>到「選手名單」新增所有打者與投手姓名。</li>
+        <li>到「打擊輸入」或「投手輸入」，選擇日期與選手，填入該場數據後按「新增此筆」。</li>
+        <li>「打擊總結」與「投手總結」會即時自動加總並計算進階數據。</li>
+        <li>到「文字分享」可產生單一或全部選手的文字報告，方便複製貼給朋友。</li>
+        <li>所有資料自動儲存在瀏覽器（localStorage），下次開啟同一瀏覽器仍會保留。</li>
+        <li>可隨時刪除單筆紀錄或清除所有資料重新開始。</li>
+      </ol>
+      <h3 style="margin-top:1.5rem;color:var(--primary)">打擊率公式</h3>
+      <ul style="padding-left:1.5rem;line-height:1.8">
+        <li><strong>打擊率 BA</strong> = 安打 ÷ 打數</li>
+        <li><strong>上壘率 OBP</strong> = (安打 + 保送 + 觸身) ÷ (打數 + 保送 + 觸身 + 犧牲飛球)</li>
+        <li><strong>長打率 SLG</strong> = 壘打數 ÷ 打數</li>
+        <li><strong>OPS</strong> = 上壘率 + 長打率</li>
+        <li>壘打數 = 一壘安打×1 + 二壘×2 + 三壘×3 + 全壘打×4</li>
+      </ul>
+      <h3 style="margin-top:1.5rem;color:var(--primary)">投手公式</h3>
+      <ul style="padding-left:1.5rem;line-height:1.8">
+        <li><strong>防禦率 ERA</strong> = (責失分 × 9) ÷ 投球局數</li>
+        <li><strong>WHIP</strong> = (保送 + 被安打) ÷ 投球局數</li>
+        <li>局數輸入範例：6.0 = 6局、5.1 = 5又1/3局、5.2 = 5又2/3局</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== Data Store ==========
+let players = JSON.parse(localStorage.getItem('bb_players') || '[]');
+let batting = JSON.parse(localStorage.getItem('bb_batting') || '[]');
+let pitching = JSON.parse(localStorage.getItem('bb_pitching') || '[]');
+
+function save() {
+  localStorage.setItem('bb_players', JSON.stringify(players));
+  localStorage.setItem('bb_batting', JSON.stringify(batting));
+  localStorage.setItem('bb_pitching', JSON.stringify(pitching));
+}
+
+// ========== Tabs ==========
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'bat-summary') renderBatSummary();
+    if (btn.dataset.tab === 'pit-summary') renderPitSummary();
+    if (btn.dataset.tab === 'share') updateShareSelect();
+  });
+});
+
+// ========== Players ==========
+function addPlayer() {
+  const name = document.getElementById('newPlayerName').value.trim();
+  const type = document.getElementById('newPlayerType').value;
+  if (!name) { alert('請輸入選手姓名'); return; }
+  if (players.some(p => p.name === name)) { alert('此選手已存在'); return; }
+  players.push({ name, type });
+  document.getElementById('newPlayerName').value = '';
+  save();
+  renderPlayers();
+  updateSelects();
+}
+
+function removePlayer(name) {
+  if (!confirm(`確定刪除選手「${name}」？相關紀錄仍會保留，但下拉選單不再顯示。`)) return;
+  players = players.filter(p => p.name !== name);
+  save();
+  renderPlayers();
+  updateSelects();
+}
+
+function renderPlayers() {
+  const el = document.getElementById('playerTags');
+  document.getElementById('playerCount').textContent = players.length;
+  if (players.length === 0) {
+    el.innerHTML = '<span style="color:var(--muted)">尚無選手，請新增或載入範例</span>';
+    return;
+  }
+  el.innerHTML = players.map(p => `
+    <span class="player-tag">
+      ${p.name}
+      <small style="opacity:0.7">(${p.type === 'both' ? '打+投' : p.type === 'batter' ? '打' : '投'})</small>
+      <button onclick="removePlayer('${p.name}')" title="刪除">×</button>
+    </span>
+  `).join('');
+}
+
+function updateSelects() {
+  const batters = players.filter(p => p.type === 'both' || p.type === 'batter');
+  const pitchers = players.filter(p => p.type === 'both' || p.type === 'pitcher');
+  const batSel = document.getElementById('batPlayer');
+  const pitSel = document.getElementById('pitPlayer');
+  batSel.innerHTML = batters.map(p => `<option value="${p.name}">${p.name}</option>`).join('') || '<option value="">請先新增打者</option>';
+  pitSel.innerHTML = pitchers.map(p => `<option value="${p.name}">${p.name}</option>`).join('') || '<option value="">請先新增投手</option>';
+  updateShareSelect();
+}
+
+function updateShareSelect() {
+  const sel = document.getElementById('sharePlayer');
+  if (!sel) return;
+  // Collect all players who have any data, plus roster
+  const names = new Set(players.map(p => p.name));
+  batting.forEach(r => names.add(r.player));
+  pitching.forEach(r => names.add(r.player));
+  const list = [...names].sort();
+  sel.innerHTML = list.map(n => `<option value="${n}">${n}</option>`).join('') || '<option value="">尚無選手</option>';
+}
+
+function loadSamplePlayers() {
+  const samples = [
+    { name: '王建民', type: 'both' },
+    { name: '陳金鋒', type: 'batter' },
+    { name: '林智勝', type: 'batter' },
+    { name: '彭政閔', type: 'batter' },
+    { name: '周思齊', type: 'batter' },
+    { name: '張志豪', type: 'batter' },
+    { name: '蘇智傑', type: 'batter' },
+    { name: '陳偉殷', type: 'pitcher' },
+    { name: '郭泓志', type: 'pitcher' },
+    { name: '曹祐齊', type: 'pitcher' },
+    { name: '江少慶', type: 'pitcher' }
+  ];
+  samples.forEach(s => {
+    if (!players.some(p => p.name === s.name)) players.push(s);
+  });
+  save();
+  renderPlayers();
+  updateSelects();
+}
+
+function clearAllData() {
+  if (!confirm('確定清除所有選手與紀錄？此動作無法復原。')) return;
+  players = [];
+  batting = [];
+  pitching = [];
+  save();
+  renderPlayers();
+  updateSelects();
+  renderBatTable();
+  renderPitTable();
+  renderBatSummary();
+  renderPitSummary();
+}
+
+// ========== Batting ==========
+function addBatting() {
+  const player = document.getElementById('batPlayer').value;
+  if (!player) { alert('請先選擇選手'); return; }
+  const rec = {
+    id: Date.now() + Math.random(),
+    date: document.getElementById('batDate').value || new Date().toISOString().slice(0,10),
+    player,
+    AB: +document.getElementById('batAB').value || 0,
+    H: +document.getElementById('batH').value || 0,
+    '2B': +document.getElementById('bat2B').value || 0,
+    '3B': +document.getElementById('bat3B').value || 0,
+    HR: +document.getElementById('batHR').value || 0,
+    BB: +document.getElementById('batBB').value || 0,
+    HBP: +document.getElementById('batHBP').value || 0,
+    SF: +document.getElementById('batSF').value || 0,
+    R: +document.getElementById('batR').value || 0,
+    RBI: +document.getElementById('batRBI').value || 0,
+    SB: +document.getElementById('batSB').value || 0,
+    SO: +document.getElementById('batSO').value || 0
+  };
+  batting.push(rec);
+  save();
+  renderBatTable();
+  // reset numbers
+  ['batAB','batH','bat2B','bat3B','batHR','batBB','batHBP','batSF','batR','batRBI','batSB','batSO'].forEach(id => {
+    document.getElementById(id).value = 0;
+  });
+}
+
+function deleteBatting(id) {
+  batting = batting.filter(r => r.id !== id);
+  save();
+  renderBatTable();
+}
+
+function renderBatTable() {
+  const tbody = document.getElementById('batTableBody');
+  const empty = document.getElementById('batEmpty');
+  document.getElementById('batRecordCount').textContent = batting.length + ' 筆';
+  if (batting.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const sorted = [...batting].sort((a,b) => b.date.localeCompare(a.date) || a.player.localeCompare(b.player));
+  tbody.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${r.date}</td><td>${r.player}</td>
+      <td>${r.AB}</td><td>${r.H}</td><td>${r['2B']}</td><td>${r['3B']}</td><td>${r.HR}</td>
+      <td>${r.BB}</td><td>${r.HBP}</td><td>${r.SF}</td><td>${r.R}</td><td>${r.RBI}</td>
+      <td>${r.SB}</td><td>${r.SO}</td>
+      <td><button class="btn btn-danger" onclick="deleteBatting(${r.id})">刪</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderBatSummary() {
+  const tbody = document.getElementById('batSumBody');
+  const empty = document.getElementById('batSumEmpty');
+  if (batting.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const map = {};
+  batting.forEach(r => {
+    if (!map[r.player]) {
+      map[r.player] = { games:0, AB:0, H:0, '2B':0, '3B':0, HR:0, BB:0, HBP:0, SF:0, R:0, RBI:0, SB:0, SO:0 };
+    }
+    const s = map[r.player];
+    s.games++;
+    s.AB += r.AB; s.H += r.H; s['2B'] += r['2B']; s['3B'] += r['3B']; s.HR += r.HR;
+    s.BB += r.BB; s.HBP += r.HBP; s.SF += r.SF; s.R += r.R; s.RBI += r.RBI; s.SB += r.SB; s.SO += r.SO;
+  });
+  const rows = Object.entries(map).map(([name, s]) => {
+    const TB = s.H + s['2B'] + 2*s['3B'] + 3*s.HR;
+    const BA = s.AB ? (s.H / s.AB) : null;
+    const denom = s.AB + s.BB + s.HBP + s.SF;
+    const OBP = denom ? ((s.H + s.BB + s.HBP) / denom) : null;
+    const SLG = s.AB ? (TB / s.AB) : null;
+    const OPS = (OBP !== null && SLG !== null) ? OBP + SLG : null;
+    const fmt = v => v === null ? '-' : v.toFixed(3);
+    return `
+      <tr>
+        <td><strong>${name}</strong></td>
+        <td>${s.games}</td><td>${s.AB}</td><td>${s.H}</td><td>${s['2B']}</td><td>${s['3B']}</td><td>${s.HR}</td>
+        <td>${s.BB}</td><td>${s.HBP}</td><td>${s.SF}</td><td>${s.R}</td><td>${s.RBI}</td><td>${s.SB}</td><td>${s.SO}</td>
+        <td>${TB}</td>
+        <td class="${BA >= 0.3 ? 'stat-good' : BA < 0.2 && BA !== null ? 'stat-bad' : ''}">${fmt(BA)}</td>
+        <td class="${OBP >= 0.35 ? 'stat-good' : ''}">${fmt(OBP)}</td>
+        <td class="${SLG >= 0.45 ? 'stat-good' : ''}">${fmt(SLG)}</td>
+        <td class="${OPS >= 0.8 ? 'stat-good' : OPS < 0.6 && OPS !== null ? 'stat-bad' : ''}"><strong>${fmt(OPS)}</strong></td>
+      </tr>
+    `;
+  }).sort((a,b) => {
+    // sort by OPS desc roughly via string, but better re-sort
+    return 0;
+  });
+  // proper sort
+  const sorted = Object.entries(map).map(([name, s]) => {
+    const TB = s.H + s['2B'] + 2*s['3B'] + 3*s.HR;
+    const BA = s.AB ? s.H / s.AB : null;
+    const denom = s.AB + s.BB + s.HBP + s.SF;
+    const OBP = denom ? (s.H + s.BB + s.HBP) / denom : null;
+    const SLG = s.AB ? TB / s.AB : null;
+    const OPS = (OBP !== null && SLG !== null) ? OBP + SLG : null;
+    return { name, s, TB, BA, OBP, SLG, OPS };
+  }).sort((a,b) => (b.OPS || 0) - (a.OPS || 0));
+
+  tbody.innerHTML = sorted.map(({ name, s, TB, BA, OBP, SLG, OPS }) => {
+    const fmt = v => v === null ? '-' : v.toFixed(3);
+    return `
+      <tr>
+        <td><strong>${name}</strong></td>
+        <td>${s.games}</td><td>${s.AB}</td><td>${s.H}</td><td>${s['2B']}</td><td>${s['3B']}</td><td>${s.HR}</td>
+        <td>${s.BB}</td><td>${s.HBP}</td><td>${s.SF}</td><td>${s.R}</td><td>${s.RBI}</td><td>${s.SB}</td><td>${s.SO}</td>
+        <td>${TB}</td>
+        <td class="${BA >= 0.3 ? 'stat-good' : BA < 0.2 && BA !== null ? 'stat-bad' : ''}">${fmt(BA)}</td>
+        <td class="${OBP >= 0.35 ? 'stat-good' : ''}">${fmt(OBP)}</td>
+        <td class="${SLG >= 0.45 ? 'stat-good' : ''}">${fmt(SLG)}</td>
+        <td class="${OPS >= 0.8 ? 'stat-good' : OPS < 0.6 && OPS !== null ? 'stat-bad' : ''}"><strong>${fmt(OPS)}</strong></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ========== Pitching ==========
+function convertIP(raw) {
+  // 5.1 -> 5 + 1/3, 5.2 -> 5 + 2/3
+  if (!raw) return 0;
+  const intPart = Math.floor(raw);
+  const frac = Math.round((raw - intPart) * 10); // 1 or 2
+  return intPart + (frac / 3);
+}
+
+function addPitching() {
+  const player = document.getElementById('pitPlayer').value;
+  if (!player) { alert('請先選擇選手'); return; }
+  const maxVeloVal = document.getElementById('pitMaxVelo').value;
+  const avgVeloVal = document.getElementById('pitAvgVelo').value;
+  const pitchesVal = document.getElementById('pitPitches').value;
+  const rec = {
+    id: Date.now() + Math.random(),
+    date: document.getElementById('pitDate').value || new Date().toISOString().slice(0,10),
+    player,
+    IP: +document.getElementById('pitIP').value || 0,
+    H: +document.getElementById('pitH').value || 0,
+    R: +document.getElementById('pitR').value || 0,
+    ER: +document.getElementById('pitER').value || 0,
+    BB: +document.getElementById('pitBB').value || 0,
+    SO: +document.getElementById('pitSO').value || 0,
+    HR: +document.getElementById('pitHR').value || 0,
+    W: +document.getElementById('pitW').value || 0,
+    L: +document.getElementById('pitL').value || 0,
+    SV: +document.getElementById('pitSV').value || 0,
+    maxVelo: maxVeloVal === '' ? null : +maxVeloVal,
+    avgVelo: avgVeloVal === '' ? null : +avgVeloVal,
+    pitches: pitchesVal === '' ? null : +pitchesVal
+  };
+  pitching.push(rec);
+  save();
+  renderPitTable();
+  ['pitIP','pitH','pitR','pitER','pitBB','pitSO','pitHR','pitW','pitL','pitSV'].forEach(id => {
+    document.getElementById(id).value = 0;
+  });
+  document.getElementById('pitMaxVelo').value = '';
+  document.getElementById('pitAvgVelo').value = '';
+  document.getElementById('pitPitches').value = '';
+}
+
+function deletePitching(id) {
+  pitching = pitching.filter(r => r.id !== id);
+  save();
+  renderPitTable();
+}
+
+function renderPitTable() {
+  const tbody = document.getElementById('pitTableBody');
+  const empty = document.getElementById('pitEmpty');
+  document.getElementById('pitRecordCount').textContent = pitching.length + ' 筆';
+  if (pitching.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const sorted = [...pitching].sort((a,b) => b.date.localeCompare(a.date) || a.player.localeCompare(b.player));
+  tbody.innerHTML = sorted.map(r => `
+    <tr>
+      <td>${r.date}</td><td>${r.player}</td>
+      <td>${r.IP}</td><td>${r.H}</td><td>${r.R}</td><td>${r.ER}</td>
+      <td>${r.BB}</td><td>${r.SO}</td><td>${r.HR}</td><td>${r.W}</td><td>${r.L}</td><td>${r.SV}</td>
+      <td>${r.maxVelo != null ? r.maxVelo : '-'}</td>
+      <td>${r.avgVelo != null ? r.avgVelo : '-'}</td>
+      <td>${r.pitches != null ? r.pitches : '-'}</td>
+      <td><button class="btn btn-danger" onclick="deletePitching(${r.id})">刪</button></td>
+    </tr>
+  `).join('');
+}
+
+function renderPitSummary() {
+  const tbody = document.getElementById('pitSumBody');
+  const empty = document.getElementById('pitSumEmpty');
+  if (pitching.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  const map = {};
+  pitching.forEach(r => {
+    if (!map[r.player]) {
+      map[r.player] = {
+        games:0, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0,
+        maxVelo: null, avgVeloSum: 0, avgVeloCount: 0, pitches: 0
+      };
+    }
+    const s = map[r.player];
+    s.games++;
+    s.rawIP += r.IP;
+    s.H += r.H; s.R += r.R; s.ER += r.ER; s.BB += r.BB; s.SO += r.SO;
+    s.HR += r.HR; s.W += r.W; s.L += r.L; s.SV += r.SV;
+    if (r.maxVelo != null) {
+      s.maxVelo = s.maxVelo == null ? r.maxVelo : Math.max(s.maxVelo, r.maxVelo);
+    }
+    if (r.avgVelo != null) {
+      s.avgVeloSum += r.avgVelo;
+      s.avgVeloCount++;
+    }
+    if (r.pitches != null) s.pitches += r.pitches;
+  });
+
+  const sorted = Object.entries(map).map(([name, s]) => {
+    const IP = convertIP(s.rawIP);
+    const ERA = IP ? (s.ER * 9 / IP) : null;
+    const WHIP = IP ? ((s.BB + s.H) / IP) : null;
+    const K9 = IP ? (s.SO * 9 / IP) : null;
+    const BB9 = IP ? (s.BB * 9 / IP) : null;
+    const avgVelo = s.avgVeloCount ? s.avgVeloSum / s.avgVeloCount : null;
+    return { name, s, IP, ERA, WHIP, K9, BB9, avgVelo };
+  }).sort((a,b) => (a.ERA || 999) - (b.ERA || 999));
+
+  tbody.innerHTML = sorted.map(({ name, s, IP, ERA, WHIP, K9, BB9, avgVelo }) => {
+    const fmt = (v, d=2) => v === null || v === undefined ? '-' : v.toFixed(d);
+    return `
+      <tr>
+        <td><strong>${name}</strong></td>
+        <td>${s.games}</td>
+        <td>${fmt(IP, 2)}</td>
+        <td>${s.H}</td><td>${s.R}</td><td>${s.ER}</td>
+        <td>${s.BB}</td><td>${s.SO}</td><td>${s.HR}</td>
+        <td>${s.W}</td><td>${s.L}</td><td>${s.SV}</td>
+        <td class="${ERA !== null && ERA <= 3.5 ? 'stat-good' : ERA > 5 ? 'stat-bad' : ''}">${fmt(ERA)}</td>
+        <td class="${WHIP !== null && WHIP <= 1.2 ? 'stat-good' : WHIP > 1.5 ? 'stat-bad' : ''}">${fmt(WHIP)}</td>
+        <td>${fmt(K9)}</td><td>${fmt(BB9)}</td>
+        <td>${s.maxVelo != null ? s.maxVelo : '-'}</td>
+        <td>${avgVelo != null ? avgVelo.toFixed(1) : '-'}</td>
+        <td>${s.pitches || '-'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ========== Text Share ==========
+function fmt3(v) { return v === null || v === undefined ? '-' : v.toFixed(3); }
+function fmt2(v) { return v === null || v === undefined ? '-' : v.toFixed(2); }
+
+function getBatterStats(name) {
+  const recs = batting.filter(r => r.player === name);
+  if (recs.length === 0) return null;
+  const s = { games: recs.length, AB:0, H:0, '2B':0, '3B':0, HR:0, BB:0, HBP:0, SF:0, R:0, RBI:0, SB:0, SO:0 };
+  recs.forEach(r => {
+    s.AB += r.AB; s.H += r.H; s['2B'] += r['2B']; s['3B'] += r['3B']; s.HR += r.HR;
+    s.BB += r.BB; s.HBP += r.HBP; s.SF += r.SF; s.R += r.R; s.RBI += r.RBI; s.SB += r.SB; s.SO += r.SO;
+  });
+  const TB = s.H + s['2B'] + 2*s['3B'] + 3*s.HR;
+  const BA = s.AB ? s.H / s.AB : null;
+  const denom = s.AB + s.BB + s.HBP + s.SF;
+  const OBP = denom ? (s.H + s.BB + s.HBP) / denom : null;
+  const SLG = s.AB ? TB / s.AB : null;
+  const OPS = (OBP !== null && SLG !== null) ? OBP + SLG : null;
+  return { s, TB, BA, OBP, SLG, OPS, recs };
+}
+
+function getPitcherStats(name) {
+  const recs = pitching.filter(r => r.player === name);
+  if (recs.length === 0) return null;
+  const s = {
+    games: recs.length, rawIP:0, H:0, R:0, ER:0, BB:0, SO:0, HR:0, W:0, L:0, SV:0,
+    maxVelo: null, avgVeloSum: 0, avgVeloCount: 0, pitches: 0
+  };
+  recs.forEach(r => {
+    s.rawIP += r.IP; s.H += r.H; s.R += r.R; s.ER += r.ER; s.BB += r.BB;
+    s.SO += r.SO; s.HR += r.HR; s.W += r.W; s.L += r.L; s.SV += r.SV;
+    if (r.maxVelo != null) s.maxVelo = s.maxVelo == null ? r.maxVelo : Math.max(s.maxVelo, r.maxVelo);
+    if (r.avgVelo != null) { s.avgVeloSum += r.avgVelo; s.avgVeloCount++; }
+    if (r.pitches != null) s.pitches += r.pitches;
+  });
+  const IP = convertIP(s.rawIP);
+  const ERA = IP ? s.ER * 9 / IP : null;
+  const WHIP = IP ? (s.BB + s.H) / IP : null;
+  const K9 = IP ? s.SO * 9 / IP : null;
+  const BB9 = IP ? s.BB * 9 / IP : null;
+  const avgVelo = s.avgVeloCount ? s.avgVeloSum / s.avgVeloCount : null;
+  return { s, IP, ERA, WHIP, K9, BB9, avgVelo, recs };
+}
+
+function buildPlayerText(name) {
+  let lines = [];
+  lines.push(`【${name}】棒球數據總結`);
+  lines.push('═'.repeat(28));
+
+  const bat = getBatterStats(name);
+  if (bat) {
+    lines.push('');
+    lines.push('▶ 打擊成績');
+    lines.push(`  出賽 ${bat.s.games} 場`);
+    lines.push(`  打數 ${bat.s.AB}　安打 ${bat.s.H}　二壘 ${bat.s['2B']}　三壘 ${bat.s['3B']}　全壘打 ${bat.s.HR}`);
+    lines.push(`  保送 ${bat.s.BB}　觸身 ${bat.s.HBP}　犧飛 ${bat.s.SF}`);
+    lines.push(`  得分 ${bat.s.R}　打點 ${bat.s.RBI}　盜壘 ${bat.s.SB}　三振 ${bat.s.SO}`);
+    lines.push(`  壘打數 ${bat.TB}`);
+    lines.push(`  打擊率 ${fmt3(bat.BA)}　上壘率 ${fmt3(bat.OBP)}　長打率 ${fmt3(bat.SLG)}`);
+    lines.push(`  OPS ${fmt3(bat.OPS)}`);
+    lines.push('');
+    lines.push('  各場明細：');
+    const sortedBat = [...bat.recs].sort((a,b) => a.date.localeCompare(b.date));
+    sortedBat.forEach(r => {
+      lines.push(`  ${r.date}　AB${r.AB} H${r.H} 2B${r['2B']} 3B${r['3B']} HR${r.HR} BB${r.BB} R${r.R} RBI${r.RBI}`);
+    });
+  } else {
+    lines.push('');
+    lines.push('▶ 打擊成績：無資料');
+  }
+
+  const pit = getPitcherStats(name);
+  if (pit) {
+    lines.push('');
+    lines.push('▶ 投手成績');
+    lines.push(`  出賽 ${pit.s.games} 場　投球局數 ${fmt2(pit.IP)}`);
+    lines.push(`  被安打 ${pit.s.H}　失分 ${pit.s.R}　責失 ${pit.s.ER}`);
+    lines.push(`  保送 ${pit.s.BB}　三振 ${pit.s.SO}　被全壘打 ${pit.s.HR}`);
+    lines.push(`  勝 ${pit.s.W}　敗 ${pit.s.L}　救援 ${pit.s.SV}`);
+    lines.push(`  防禦率 ${fmt2(pit.ERA)}　WHIP ${fmt2(pit.WHIP)}`);
+    lines.push(`  K/9 ${fmt2(pit.K9)}　BB/9 ${fmt2(pit.BB9)}`);
+    lines.push(`  最高球速 ${pit.s.maxVelo != null ? pit.s.maxVelo + ' km/h' : '-'}　平均球速 ${pit.avgVelo != null ? pit.avgVelo.toFixed(1) + ' km/h' : '-'}`);
+    lines.push(`  總用球數 ${pit.s.pitches || '-'}`);
+    lines.push('');
+    lines.push('  各場明細：');
+    const sortedPit = [...pit.recs].sort((a,b) => a.date.localeCompare(b.date));
+    sortedPit.forEach(r => {
+      const velo = [r.maxVelo != null ? `最高${r.maxVelo}` : '', r.avgVelo != null ? `均速${r.avgVelo}` : '', r.pitches != null ? `球數${r.pitches}` : ''].filter(Boolean).join(' ');
+      lines.push(`  ${r.date}　IP${r.IP} H${r.H} R${r.R} ER${r.ER} BB${r.BB} SO${r.SO} W${r.W} L${r.L} SV${r.SV}${velo ? '　' + velo : ''}`);
+    });
+  } else {
+    lines.push('');
+    lines.push('▶ 投手成績：無資料');
+  }
+
+  lines.push('');
+  lines.push('─'.repeat(28));
+  lines.push('由棒球統計軟體產生');
+  return lines.join('\n');
+}
+
+function generateShareText() {
+  const name = document.getElementById('sharePlayer').value;
+  if (!name) { alert('請先選擇選手'); return; }
+  const text = buildPlayerText(name);
+  document.getElementById('shareOutput').value = text;
+  document.getElementById('copyBtn').style.display = 'inline-block';
+  document.getElementById('copyMsg').style.display = 'none';
+}
+
+function generateAllShareText() {
+  const names = new Set();
+  batting.forEach(r => names.add(r.player));
+  pitching.forEach(r => names.add(r.player));
+  if (names.size === 0) { alert('尚無任何數據'); return; }
+  const list = [...names].sort();
+  const parts = list.map(n => buildPlayerText(n));
+  const text = parts.join('\n\n' + '★'.repeat(14) + '\n\n');
+  document.getElementById('shareOutput').value = text;
+  document.getElementById('copyBtn').style.display = 'inline-block';
+  document.getElementById('copyMsg').style.display = 'none';
+}
+
+function copyShareText() {
+  const ta = document.getElementById('shareOutput');
+  if (!ta.value) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    const msg = document.getElementById('copyMsg');
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  }).catch(() => {
+    ta.select();
+    document.execCommand('copy');
+    const msg = document.getElementById('copyMsg');
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  });
+}
+
+// ========== Init ==========
+document.getElementById('batDate').value = new Date().toISOString().slice(0,10);
+document.getElementById('pitDate').value = new Date().toISOString().slice(0,10);
+renderPlayers();
+updateSelects();
+renderBatTable();
+renderPitTable();
+</script>
+</body>
+</html>
